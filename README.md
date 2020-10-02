@@ -1,2 +1,2 @@
-# katana
+# Katana
 Transposable Element Scraper and Removal Tool.
