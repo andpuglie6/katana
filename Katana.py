@@ -2,15 +2,16 @@ import random
 import sys, getopt
 import traceback
 
+querySeq = "chr21 "
+chromosomeFile = ""
 rmIndex = 0
 removeAmount = 0
 indexListIndxOne = []
 indexListIndxTwo = []
 tempListOne = []
 tempListTwo = []
-querySeq = "chr4 "
 
-def deleteTE(indexListIndxOne, indexListIndxTwo, deletionPercent):
+def findTE(indexListIndxOne, indexListIndxTwo, deletionPercent):
     global tempListOne
     global tempListTwo
     global removeAmount
@@ -44,21 +45,28 @@ def deleteTE(indexListIndxOne, indexListIndxTwo, deletionPercent):
         removeAmount = 0 
     
 
-def parseChromosome(indexListIndxOne, indexListIndxTwo, deletionPercent):
+def stripChromosome(indexListIndxOne, indexListIndxTwo, deletionPercent):
     global removeAmount
+    global querySeq
+    global chromosomeFile
     
     listIndex = 0
     indexCounter = -5
     sideCounter = -5
-
-    file = open("chr4TE" + str(int(deletionPercent*100)) + "%.fasta", "w+")
+    lineTrigger = 0
     
-    file.write(">chr4\n")
+    file = open(querySeq[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta", "w+")
+    
+    file.write(">" + querySeq[:-1] + " adjusted for " + str(int(deletionPercent*100)) + "% of Transposable Elements Removed.\n")
 
     print("Stripping Transposable Elements from Chromosome...")
-    
-    with open('chr4 - Copy.fa') as chromosometext:
+    with open(chromosomeFile) as chromosometext:
         for line in chromosometext:
+            
+            if lineTrigger == 0:
+                lineTrigger = 1
+                continue
+            
             for char in line:
                 
                 if deletionPercent != 0:
@@ -98,26 +106,29 @@ def parseChromosome(indexListIndxOne, indexListIndxTwo, deletionPercent):
 
     print("Originally " + str(indexCounter) + " Base Pairs.")
     print("Now " + str(sideCounter) + " Base Pairs after " + str(removeAmount) + " Random Transposable Elements Removed.")
-    print("Adjusted Chromosome written to: " + "chr4TE" + str(int(deletionPercent*100)) + "%.fasta")
+    print("Adjusted Chromosome written to: " + querySeq[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta")
     
 # Execution
 def main(argv):
     global rmIndex
+    global querySeq
+    global chromosomeFile
     
     repeatMaskerFile = ''
     chromosomeFile = ''
+    querySeq = ''
     
     try:
-        opts, args = getopt.getopt(argv, "hf:c:", ["rfile=","cfile="])
+        opts, args = getopt.getopt(argv, "hf:c:q:", ["rfile=","cfile=","qSeq="])
     except getopt.GetoptError:
-        print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile>')
+        print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -q <Chromosome query>')
         sys.exit(2)
        
         # parse RepeatMasker
     for opt, arg in opts:
         
         if opt == '-h':
-            print('katana.py -f <RepeatMaskerFile> -c <ChromosomeFile>')
+            print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -q <Chromsome query>')
             sys.exit()
             
         elif opt in ("-f", "--rfile"):
@@ -125,9 +136,11 @@ def main(argv):
             
         elif opt in ("-c", "--cfile"):
             chromosomeFile = arg
-    
-    querySeq = chromosomeFile[:-3]
-    querySeq += " "
+            
+        elif opt in ("-q", "--qSeq"):
+            querySeq = arg
+            querySeq += " "
+            print(querySeq)
     
     try:
         print("Parsing " + querySeq + "for Transposable Elements from " + repeatMaskerFile)
@@ -142,12 +155,12 @@ def main(argv):
                     indexListIndxTwo.append(int(values[6]))
             
         # parse Chromosome
-        deleteTE(indexListIndxOne, indexListIndxTwo, 0.8)
-        parseChromosome(tempListOne, tempListTwo, 0.8)        
-        deleteTE(indexListIndxOne, indexListIndxTwo, 0.4)
-        parseChromosome(tempListOne, tempListTwo, 0.4)
-        deleteTE(indexListIndxOne, indexListIndxTwo, 0)
-        parseChromosome(tempListOne, tempListTwo, 0)
+        #findTE(indexListIndxOne, indexListIndxTwo, 0.8)
+        #stripChromosome(tempListOne, tempListTwo, 0.8)        
+        #findTE(indexListIndxOne, indexListIndxTwo, 0.4)
+        #stripChromosome(tempListOne, tempListTwo, 0.4)
+        findTE(indexListIndxOne, indexListIndxTwo, 0.1)
+        stripChromosome(tempListOne, tempListTwo, 0.1)
             
     except:
         print("Error Detected. Exiting...")
