@@ -2,19 +2,19 @@ import random
 import sys, getopt
 import traceback
 
-querySeq = "chr21 "
-chromosomeFile = ""
 rmIndex = 0
 removeAmount = 0
-indexListIndxOne = []
-indexListIndxTwo = []
+querySeq = []
 tempListOne = []
 tempListTwo = []
+
 
 def findTE(indexListIndxOne, indexListIndxTwo, deletionPercent):
     global tempListOne
     global tempListTwo
     global removeAmount
+    
+    removeAmount = 0
     
     if deletionPercent != 0:
     
@@ -45,27 +45,37 @@ def findTE(indexListIndxOne, indexListIndxTwo, deletionPercent):
         removeAmount = 0 
     
 
-def stripChromosome(indexListIndxOne, indexListIndxTwo, deletionPercent):
+def stripChromosome(queryNum, chromosome, indexListIndxOne, indexListIndxTwo, deletionPercent,chromosomeFile):
     global removeAmount
-    global querySeq
-    global chromosomeFile
     
     listIndex = 0
-    indexCounter = -5
-    sideCounter = -5
-    lineTrigger = 0
+    indexCounter = 0
+    sideCounter = 0
+    started = False
     
-    file = open(querySeq[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta", "w+")
+    file = open(chromosome[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta", "w+")
     
-    file.write(">" + querySeq[:-1] + " adjusted for " + str(int(deletionPercent*100)) + "% of Transposable Elements Removed.\n")
-
+    file.write(">" + chromosome[:-1] + " adjusted for " + str(int(deletionPercent*100)) + "% of Transposable Elements Removed.\n")
+    
     print("Stripping Transposable Elements from Chromosome...")
     with open(chromosomeFile) as chromosometext:
         for line in chromosometext:
             
-            if lineTrigger == 0:
-                lineTrigger = 1
+            if queryNum != 0:
+                if line[0] == '>' and indexCounter != 0:
+                    queryNum -= 1
+                    indexCounter = 0
+                    sideCounter = 0
+                    
+                indexCounter += 1
                 continue
+            
+            if line[0] == '>':
+                if started == True:
+                    break                    
+                else:
+                    started = True
+                    continue
             
             for char in line:
                 
@@ -103,32 +113,31 @@ def stripChromosome(indexListIndxOne, indexListIndxTwo, deletionPercent):
                     
                     if indexCounter >= 1:
                         file.write(char)
-
+                        
+    file.close()
+    
     print("Originally " + str(indexCounter) + " Base Pairs.")
     print("Now " + str(sideCounter) + " Base Pairs after " + str(removeAmount) + " Random Transposable Elements Removed.")
-    print("Adjusted Chromosome written to: " + querySeq[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta")
+    print("Adjusted Chromosome written to: " + chromosome[:-1] + "TE" + str(int(deletionPercent*100)) + "%.fasta")
     
 # Execution
 def main(argv):
-    global rmIndex
-    global querySeq
-    global chromosomeFile
-    
     repeatMaskerFile = ''
     chromosomeFile = ''
     querySeq = ''
+    rmIndex = 0
     
     try:
-        opts, args = getopt.getopt(argv, "hf:c:q:", ["rfile=","cfile=","qSeq="])
+        opts, args = getopt.getopt(argv, "hf:c:n:q:", ["rfile=","cfile=", "qSeq="])
     except getopt.GetoptError:
-        print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -q <Chromosome query>')
+        print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -n <Chromosome Count to be Spliced> -q <Chromosome queries>')
         sys.exit(2)
        
         # parse RepeatMasker
     for opt, arg in opts:
         
         if opt == '-h':
-            print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -q <Chromsome query>')
+            print('katana.py -f <repeatMaskerFile> -c <ChromosomeFile> -n <Chromosome Count to be Spliced> -q <Chromosome queries>')
             sys.exit()
             
         elif opt in ("-f", "--rfile"):
@@ -139,28 +148,32 @@ def main(argv):
             
         elif opt in ("-q", "--qSeq"):
             querySeq = arg
-            querySeq += " "
-            print(querySeq)
-    
-    try:
-        print("Parsing " + querySeq + "for Transposable Elements from " + repeatMaskerFile)
-
-        with open(repeatMaskerFile) as fastatext:
-            for line in fastatext:
-                
-                if line.find(querySeq) != -1:
-                    rmIndex += 1
-                    values = line.split()
-                    indexListIndxOne.append(int(values[5]))
-                    indexListIndxTwo.append(int(values[6]))
+            querySeq = querySeq.split("-")
             
-        # parse Chromosome
-        #findTE(indexListIndxOne, indexListIndxTwo, 0.8)
-        #stripChromosome(tempListOne, tempListTwo, 0.8)        
-        #findTE(indexListIndxOne, indexListIndxTwo, 0.4)
-        #stripChromosome(tempListOne, tempListTwo, 0.4)
-        findTE(indexListIndxOne, indexListIndxTwo, 0.1)
-        stripChromosome(tempListOne, tempListTwo, 0.1)
+    try:
+        queryNum = 0
+        for chromosome in querySeq:
+            
+            chromosome += " "
+            rmIndex = 0
+            indexListIndxOne = []
+            indexListIndxTwo = []
+            
+            with open(repeatMaskerFile) as fastatext:
+                print("Parsing " + chromosome[:-1] + " for Transposable Elements from " + repeatMaskerFile)
+                for line in fastatext:
+                        
+                    if line.find(chromosome) != -1:
+                        rmIndex += 1
+                        values = line.split()
+                        indexListIndxOne.append(int(values[5]))
+                        indexListIndxTwo.append(int(values[6]))
+                
+            # strip Chromosomes of TEs
+            findTE(indexListIndxOne, indexListIndxTwo, 0.1)
+            stripChromosome(queryNum, chromosome, tempListOne, tempListTwo, 0.1, chromosomeFile)
+            
+            queryNum += 1
             
     except:
         print("Error Detected. Exiting...")
